@@ -88,7 +88,6 @@
         const URL_API = "https://script.google.com/macros/s/AKfycbymqeIEbYnh0tvHy0fqmBvauPg2HFdZjxC_O6V254G4wqoMFSLSDgNS10MxWm5EFzsozQ/exec";
         const estadosSecuencia = ["PENDIENTE", "ACEPTADA", "EN_CAMINO", "YA_ESTAMOS_AFUERA", "FINALIZADA"];
         
-        // Textos amigables para leer en voz alta según el estado
         const nombresEstadosVoz = {
             "PENDIENTE": "Buscando conductor disponible",
             "ACEPTADA": "Su viaje ha sido aceptado por un conductor",
@@ -134,7 +133,7 @@
             });
         }
 
-        // 🗣️ LECTOR DE VOZ AUTOMÁTICO (SpeechSynthesis)
+        // 🗣️ LECTOR DE VOZ PARA CAMBIOS DE ESTADO
         function hablar(texto) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
@@ -143,6 +142,41 @@
                 utterance.rate = 1.0;
                 utterance.pitch = 1.0;
                 window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 🔔 SONIDO DE CAMPANAS (DING-DONG) PARA EL CHAT NUEVO
+        function reproducirCampanas() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Primer tono de campana
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+                gain1.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start();
+                osc1.stop(audioCtx.currentTime + 0.5);
+                
+                // Segundo tono de campana en eco (Ding-Dong)
+                setTimeout(() => {
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(1320, audioCtx.currentTime); // E6
+                    gain2.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    osc2.start();
+                    osc2.stop(audioCtx.currentTime + 0.6);
+                }, 180);
+            } catch (e) {
+                console.error("Audio no soportado:", e);
             }
         }
 
@@ -161,9 +195,8 @@
 
                     document.getElementById("lblConductor").innerText = v.conductor || "Buscando...";
                     
-                    // 🔊 Detectar cambios de estado y pronunciarlos en voz alta
+                    // Notificación por voz del estado
                     if (v.estado && v.estado !== estadoAnterior) {
-                        // Evitamos hablar en la primera carga si ya arrancó en un estado avanzado
                         if (estadoAnterior !== "" && nombresEstadosVoz[v.estado]) {
                             hablar(nombresEstadosVoz[v.estado]);
                         }
@@ -191,11 +224,11 @@
                     let mensajesActuales = [];
                     try { mensajesActuales = JSON.parse(v.chat || "[]"); } catch(e) { mensajesActuales = []; }
 
-                    // Detección de mensajes nuevos del conductor
+                    // Si hay mensaje nuevo del conductor, suena la campana
                     if (mensajesActuales.length > cantidadMensajesAnterior) {
                         let ultimoMensaje = mensajesActuales[mensajesActuales.length - 1];
                         if (ultimoMensaje && ultimoMensaje.remitente === 'conductor') {
-                            hablar("Nuevo mensaje del conductor: " + ultimoMensaje.texto);
+                            reproducirCampanas();
                         }
                         cantidadMensajesAnterior = mensajesActuales.length;
                     }

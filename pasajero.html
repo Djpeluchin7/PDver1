@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Primo - Pasajero Seguro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        body { background-color: #000; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: #121212; padding: 16px; border-bottom: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; }
+        .container { flex: 1; display: flex; flex-direction: column; padding: 15px; max-width: 600px; width: 100%; margin: 0 auto; overflow-y: auto; }
+        .card { background: #181818; border: 1px solid #282828; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+        .input-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        input { background: #282828; border: 1px solid #383838; color: #fff; padding: 12px; border-radius: 8px; outline: none; }
+        button { background: #fff; color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 5px; }
+        .btn-cancel { background: #380d11; color: #ff6b6b; border: 1px solid #701a23; margin-top: 10px; }
+        .btn-new-trip { background: #276ef1; color: #fff; margin-top: 10px; display: none; }
+        
+        .admin-banner { background: #1c2a4f; border: 1px solid #276ef1; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9rem; display: none; }
+        .chat-box { background: #121212; border: 1px solid #333; border-radius: 8px; height: 160px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .msg { padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; max-width: 80%; }
+        .msg.conductor { background: #282828; align-self: flex-start; }
+        .msg.pasajero { background: #276ef1; align-self: flex-end; color: #fff; }
+        .chat-input-row { display: flex; gap: 8px; }
+        .chat-input-row input { flex: 1; margin: 0; padding: 8px 12px; }
+        .chat-input-row button { width: 70px; margin: 0; padding: 8px; }
+        
+        .progress-track-container { margin: 25px 15px; }
+        .progress-line-wrapper { position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .progress-bg-line { position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: #333; transform: translateY(-50%); z-index: 1; }
+        .progress-fill-line { position: absolute; top: 50%; left: 0; width: 0%; height: 4px; background: #276ef1; transform: translateY(-50%); z-index: 2; transition: width 0.4s ease; }
+        .progress-step { position: relative; z-index: 3; background: #1f1f1f; border: 2px solid #444; width: 18px; height: 18px; border-radius: 50%; }
+        .progress-step.active { border-color: #276ef1; background: #276ef1; }
+        .car-icon-container { position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); z-index: 4; transition: left 0.4s ease; font-size: 20px; }
+        .progress-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: #888; text-align: center; }
+        .progress-labels span { width: 20%; }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>Primo - Pasajero</h2>
+        <button id="btnNuevaCarreraTop" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.8rem; display:none;" onclick="limpiarYCrearNuevo()">Nuevo Viaje</button>
+    </header>
+    <div class="container">
+        <div class="card" id="formulario">
+            <h3>Solicitar Viaje</h3>
+            <div class="input-group"><label>Nombre</label><input type="text" id="nombreCliente" placeholder="Tu nombre"></div>
+            <div class="input-group"><label>Origen</label><input type="text" id="origen" placeholder="Punto de partida"></div>
+            <div class="input-group"><label>Destino</label><input type="text" id="destino" placeholder="Destino"></div>
+            <button onclick="pedirViaje()">Pedir Viaje</button>
+        </div>
+
+        <div class="card" id="estadoViaje" style="display:none;">
+            <h3>Estado del Viaje</h3>
+            <div class="admin-banner" id="adminBanner"></div>
+
+            <div class="progress-track-container">
+                <div class="progress-line-wrapper">
+                    <div class="progress-bg-line"></div>
+                    <div class="progress-fill-line" id="progressFill"></div>
+                    <div class="car-icon-container" id="carIcon">🚗</div>
+                    <div class="progress-step" id="step0"></div>
+                    <div class="progress-step" id="step1"></div>
+                    <div class="progress-step" id="step2"></div>
+                    <div class="progress-step" id="step3"></div>
+                    <div class="progress-step" id="step4"></div>
+                </div>
+                <div class="progress-labels">
+                    <span>Buscando</span><span>Aceptado</span><span>En camino</span><span>Afuera</span><span>Fin</span>
+                </div>
+            </div>
+
+            <p style="font-size:0.9rem; margin-bottom:10px;">Conductor: <strong id="lblConductor">Buscando...</strong></p>
+
+            <h4 style="font-size:0.9rem; margin-bottom:6px; color:#aaa;">Chat con Conductor</h4>
+            <div class="chat-box" id="chatBox"></div>
+            <div class="chat-input-row" id="chatInputRow">
+                <input type="text" id="txtMensaje" placeholder="Escribe al conductor...">
+                <button onclick="enviarMensajePasajero()">Enviar</button>
+            </div>
+
+            <button class="btn-cancel" id="btnCancelar" onclick="cancelarViaje()">Cancelar Viaje</button>
+            <button class="btn-new-trip" id="btnNuevoViaje" onclick="limpiarYCrearNuevo()">Solicitar Otro Viaje</button>
+        </div>
+    </div>
+    
+    <script>
+        const URL_API = "https://script.google.com/macros/s/AKfycbymqeIEbYnh0tvHy0fqmBvauPg2HFdZjxC_O6V254G4wqoMFSLSDgNS10MxWm5EFzsozQ/exec";
+        const estadosSecuencia = ["PENDIENTE", "ACEPTADA", "EN_CAMINO", "YA_ESTAMOS_AFUERA", "FINALIZADA"];
+        
+        // Textos amigables para leer en voz alta según el estado
+        const nombresEstadosVoz = {
+            "PENDIENTE": "Buscando conductor disponible",
+            "ACEPTADA": "Su viaje ha sido aceptado por un conductor",
+            "EN_CAMINO": "El conductor va en camino hacia su ubicación",
+            "YA_ESTAMOS_AFUERA": "El conductor ya está afuera esperando por usted",
+            "FINALIZADA": "Su viaje ha finalizado. Gracias por viajar con Primo",
+            "CANCELADA": "El viaje ha sido cancelado"
+        };
+
+        let intervaloMonitoreo = null;
+        let cantidadMensajesAnterior = 0;
+        let estadoAnterior = "";
+
+        window.onload = function() {
+            let id = localStorage.getItem("id_viaje_cliente");
+            let token = localStorage.getItem("token_viaje_cliente");
+            if(id && token) {
+                document.getElementById("formulario").style.display = "none";
+                document.getElementById("estadoViaje").style.display = "block";
+                iniciarMonitoreo(id, token);
+            }
+        };
+
+        function pedirViaje() {
+            let cliente = document.getElementById("nombreCliente").value;
+            let origen = document.getElementById("origen").value;
+            let destino = document.getElementById("destino").value;
+            if(!cliente || !origen || !destino) return alert("Completa los campos");
+
+            fetch(URL_API, { 
+                method: "POST", 
+                body: JSON.stringify({ accion: "crear_viaje", cliente, origen, destino }) 
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    localStorage.setItem("id_viaje_cliente", data.id_viaje);
+                    localStorage.setItem("token_viaje_cliente", data.token_viaje);
+                    location.reload();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        }
+
+        // 🗣️ LECTOR DE VOZ AUTOMÁTICO (SpeechSynthesis)
+        function hablar(texto) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(texto);
+                utterance.lang = 'es-ES';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function iniciarMonitoreo(id, token) {
+            intervaloMonitoreo = setInterval(() => {
+                fetch(URL_API, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "obtener_viaje", id_viaje: id, token_viaje: token })
+                })
+                .then(res => res.json())
+                .then(v => {
+                    if(!v.success) {
+                        clearInterval(intervaloMonitoreo);
+                        return;
+                    }
+
+                    document.getElementById("lblConductor").innerText = v.conductor || "Buscando...";
+                    
+                    // 🔊 Detectar cambios de estado y pronunciarlos en voz alta
+                    if (v.estado && v.estado !== estadoAnterior) {
+                        // Evitamos hablar en la primera carga si ya arrancó en un estado avanzado
+                        if (estadoAnterior !== "" && nombresEstadosVoz[v.estado]) {
+                            hablar(nombresEstadosVoz[v.estado]);
+                        }
+                        estadoAnterior = v.estado;
+                    }
+                    
+                    let idx = estadosSecuencia.indexOf(v.estado);
+                    if(idx === -1) idx = 0;
+                    let pct = (idx / (estadosSecuencia.length - 1)) * 100;
+                    document.getElementById("progressFill").style.width = pct + "%";
+                    document.getElementById("carIcon").style.left = pct + "%";
+                    for(let i=0; i<=4; i++) {
+                        document.getElementById("step"+i).className = i <= idx ? "progress-step active" : "progress-step";
+                    }
+
+                    let banner = document.getElementById("adminBanner");
+                    if(v.admin_info) {
+                        banner.style.display = "block";
+                        banner.innerHTML = "<strong>Soporte Admin:</strong> " + v.admin_info;
+                    } else {
+                        banner.style.display = "none";
+                    }
+
+                    let chatBox = document.getElementById("chatBox");
+                    let mensajesActuales = [];
+                    try { mensajesActuales = JSON.parse(v.chat || "[]"); } catch(e) { mensajesActuales = []; }
+
+                    // Detección de mensajes nuevos del conductor
+                    if (mensajesActuales.length > cantidadMensajesAnterior) {
+                        let ultimoMensaje = mensajesActuales[mensajesActuales.length - 1];
+                        if (ultimoMensaje && ultimoMensaje.remitente === 'conductor') {
+                            hablar("Nuevo mensaje del conductor: " + ultimoMensaje.texto);
+                        }
+                        cantidadMensajesAnterior = mensajesActuales.length;
+                    }
+
+                    chatBox.innerHTML = mensajesActuales.map(m => `<div class="msg ${m.remitente === 'pasajero' ? 'pasajero' : 'conductor'}"><b>${m.remitente === 'pasajero' ? 'Tú' : 'Conductor'}:</b> ${m.texto}</div>`).join('');
+                    chatBox.scrollTop = chatBox.scrollHeight;
+
+                    if(v.estado === "FINALIZADA" || v.estado === "CANCELADA") {
+                        clearInterval(intervaloMonitoreo);
+                        document.getElementById("btnCancelar").style.display = "none";
+                        document.getElementById("chatInputRow").style.display = "none";
+                        document.getElementById("btnNuevoViaje").style.display = "block";
+                        document.getElementById("btnNuevaCarreraTop").style.display = "block";
+                    }
+                });
+            }, 3000);
+        }
+
+        function enviarMensajePasajero() {
+            let txt = document.getElementById("txtMensaje").value;
+            let id = localStorage.getItem("id_viaje_cliente");
+            let token = localStorage.getItem("token_viaje_cliente");
+            if(!txt || !id || !token) return;
+
+            fetch(URL_API, { 
+                method: "POST", 
+                body: JSON.stringify({ accion: "enviar_mensaje", id_viaje: id, token_viaje: token, remitente: "pasajero", texto: txt }) 
+            })
+            .then(() => { 
+                document.getElementById("txtMensaje").value = ""; 
+            });
+        }
+
+        function cancelarViaje() {
+            let id = localStorage.getItem("id_viaje_cliente");
+            let token = localStorage.getItem("token_viaje_cliente");
+            if(!id || !token || !confirm("¿Cancelar viaje?")) return;
+
+            fetch(URL_API, { 
+                method: "POST", 
+                body: JSON.stringify({ accion: "actualizar_estado", id_viaje: id, token_viaje: token, estado: "CANCELADA" }) 
+            })
+            .then(() => {
+                if(intervaloMonitoreo) clearInterval(intervaloMonitoreo);
+                document.getElementById("btnCancelar").style.display = "none";
+                document.getElementById("chatInputRow").style.display = "none";
+                document.getElementById("btnNuevoViaje").style.display = "block";
+                document.getElementById("btnNuevaCarreraTop").style.display = "block";
+            });
+        }
+
+        function limpiarYCrearNuevo() {
+            localStorage.clear();
+            location.reload();
+        }
+    </script>
+</body>
+</html>
